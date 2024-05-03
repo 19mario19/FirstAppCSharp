@@ -1,4 +1,6 @@
-﻿namespace FirstAppCSharp
+﻿using System.Globalization;
+
+namespace FirstAppCSharp
 {
     internal partial class Program
     {
@@ -19,10 +21,19 @@
 
             public static int nextInt = 1;
 
-            public Task(string? _name)
+            public Task(string? _name, int assignedId = -1, bool assignedDone = false)
             {
                 name = _name;
-                Id = nextInt++;
+                if (assignedId > -1 && assignedDone)
+                {
+                    Id = assignedId;
+                    done = assignedDone;
+                }
+                else
+                {
+
+                    Id = nextInt++;
+                }
                 taskList.Add(this);
             }
 
@@ -40,12 +51,11 @@
         internal class ToDo
         {
             public int Id { get; }
+            public string? Name { get; set; }
 
             public static List<string> listNames = new();
 
             public static List<ToDo> AllToDoLists = new();
-
-            public string? Name { get; set; }
 
             public List<Task> list = new();
 
@@ -53,10 +63,19 @@
 
             private static int nextId = 1;
 
-            public ToDo(string? _Name)
+            public ToDo(string? _Name, int assignedId = -1)
             {
-                Id = nextId++;
-                HowManyLists++;
+                if (assignedId < -1)
+                {
+
+                    Id = assignedId;
+                }
+                else
+                {
+                    Id = nextId++;
+                    HowManyLists++;
+
+                }
                 Name = _Name;
                 if (!string.IsNullOrEmpty(Name)) listNames.Add(Name);
                 AllToDoLists.Add(this);
@@ -64,18 +83,19 @@
 
             public static void PrintAllLists()
             {
-                Console.WriteLine("\n");
                 foreach (ToDo toDo in AllToDoLists)
                 {
                     Console.WriteLine($"\nList with name '{toDo.Name}', ID: {toDo.Id} ");
 
-                    toDo.list.ForEach(task => Console.WriteLine($"{task.Id}.{"",-1}{task.name,-15} - {task.done}"));
+                    toDo.list.ForEach(task => Console.WriteLine($"{task.Id,3}. {task.name,-15} - {task.done}"));
                 }
-                Console.WriteLine("\n");
+                Console.WriteLine();
             }
 
-            public void AddTask(string name)
+            public void AddTask(string name, int assignedId = -1, bool assignedDone = false)
             {
+                if (assignedId > -1 && assignedDone) list.Add(new Task(name, assignedId, assignedDone));
+
                 list.Add(new Task(name));
             }
 
@@ -129,12 +149,125 @@
             {
                 list.ForEach(el => el.done = false);
             }
+
+            public static string fileName = $"todo-backup.txt";
+            public static void SaveToFile()
+            {
+                // Getting the date using en-GB format
+                CultureInfo cultureInfo = new CultureInfo("en-GB");
+                DateTime dateTime = DateTime.Now;
+                string dateNow = dateTime.ToString(cultureInfo);
+                Console.WriteLine($"Saved at {dateNow}");
+
+
+                try
+                {
+                    using (StreamWriter writer = new StreamWriter(fileName, false))
+                    {
+                        foreach (ToDo todo in AllToDoLists)
+                        {
+                            writer.WriteLine($"List:{todo.Name}:{todo.Id}");
+
+                            foreach (Task task in todo.list)
+                            {
+                                writer.WriteLine($"Task:{task.Id}:{task.name}:{task.done}");
+                            }
+
+                            writer.WriteLine();
+                        }
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error while saving data: {ex.Message}");
+                }
+
+
+            }
+            public static List<ToDo> ReadFromFile()
+            {
+                AllToDoLists.Clear();
+                List<ToDo> restoredList = new List<ToDo>();
+
+                try
+                {
+                    using (StreamReader reader = new StreamReader(fileName))
+                    {
+                        string? line;
+                        ToDo? currentToDo = null;
+
+                        while ((line = reader.ReadLine()) != null)
+                        {
+                            if (line.StartsWith("List:"))
+                            {
+                                // Extract ToDo information from the line
+                                string[] listParts = line.Split(':');
+                                string name = listParts[1];
+                                int id = int.Parse(listParts[2]);
+
+                                // Create a new ToDo instance
+                                currentToDo = new ToDo(name, id);
+                                restoredList.Add(currentToDo);
+
+                                // Update the nextId static variable
+                                ToDo.nextId = Math.Max(ToDo.nextId, id + 1);
+
+                            }
+                            else if (line.StartsWith("Task:") && currentToDo != null)
+                            {
+                                // Extract Task information from the line
+                                string[] taskParts = line.Split(':');
+                                int taskId = int.Parse(taskParts[1]);
+                                string taskName = taskParts[2];
+                                bool taskDone = bool.Parse(taskParts[3]);
+
+                                // Add the task information to the current ToDo (but don't create new Task instances here)
+                                currentToDo.list.Add(new Task(taskName, taskId, taskDone));
+                            }
+                            else if (string.IsNullOrWhiteSpace(line))
+                            {
+                                // Empty line indicates separation between lists
+
+                                currentToDo = null;
+                            }
+                        }
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error while reading data: {ex.Message}");
+                }
+
+                return restoredList;
+            }
+            public static void SyncToDo()
+            {
+                AllToDoLists = ReadFromFile();
+            }
+            public static void Initialize()
+            {
+                Task.nextInt = 1;
+                ToDo.nextId = 1;
+                ToDo.AllToDoLists.Clear();
+
+            }
+
         }
 
         internal static void Main(string[] args)
         {
 
+
+            ToDo.Initialize();
+            ToDo.SyncToDo();
+
+
+
+
             editMode();
+
         }
 
         internal class Command
@@ -170,11 +303,13 @@
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Create your todos!");
             Console.ResetColor();
+            ToDo.PrintAllLists();
             Console.WriteLine("Here are the commands you can use: ");
 
             while (true)
             {
                 ShowCommands();
+                ToDo.SaveToFile();
                 int number = ToDo.AllToDoLists.Count;
                 Console.WriteLine("Total lists: " + number);
                 int howManyTasks = Task.taskList.Count;
@@ -351,7 +486,7 @@
             {
                 Console.Write(description);
                 string? inputValue = Console.ReadLine();
-                if (inputValue != null)
+                if (!string.IsNullOrEmpty(inputValue))
                 {
 
                     return inputValue;
@@ -361,7 +496,7 @@
 
             static void ShowCurrentList(string notification)
             {
-                if (notification != null)
+                if (!string.IsNullOrEmpty(notification))
                 {
                     Console.ForegroundColor = ConsoleColor.Magenta;
                     Console.WriteLine(notification);
@@ -384,7 +519,7 @@
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                 }
-                else if (command.Name == "h")
+                else if (command.Name == "p")
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
                 }
