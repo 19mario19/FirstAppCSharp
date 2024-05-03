@@ -85,7 +85,7 @@ namespace FirstAppCSharp
             {
                 foreach (ToDo toDo in AllToDoLists)
                 {
-                    Console.WriteLine($"\nList with name '{toDo.Name}', ID: {toDo.Id} ");
+                    Console.WriteLine($"\nID: {toDo.Id}. {toDo.Name?.ToUpper()}\n");
 
                     toDo.list.ForEach(task => Console.WriteLine($"{task.Id,3}. {task.name,-15} - {task.done}"));
                 }
@@ -246,6 +246,10 @@ namespace FirstAppCSharp
             {
                 AllToDoLists = ReadFromFile();
             }
+            public static void DeleteFile()
+            {
+                File.Delete(fileName);
+            }
             public static void Initialize()
             {
                 Task.nextInt = 1;
@@ -341,7 +345,7 @@ namespace FirstAppCSharp
                                 {
                                     ToDo newToDo = new(name);
                                     Console.WriteLine($"\nYou created a new list with name '{newToDo.Name}'");
-                                    Console.WriteLine();
+
 
                                 }
                                 break;
@@ -380,6 +384,7 @@ namespace FirstAppCSharp
                                 ToDo.listNames.RemoveAll(toDo => toDo != "");
                                 ToDo.AllToDoLists.RemoveAll(toDo => toDo.Name != "");
                                 Task.taskList.RemoveAll(task => task.name != "");
+                                ToDo.DeleteFile();
 
                                 Console.WriteLine();
 
